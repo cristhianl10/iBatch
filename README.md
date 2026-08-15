@@ -29,6 +29,39 @@ Spring Boot API ---- volumen /data/input
 
 La carga web no omite el flujo batch: guarda el archivo de manera temporal y atomica en el mismo directorio configurado que usa la consulta de archivos disponibles. El procesamiento sigue siendo una accion separada del operador.
 
+## Despliegue actual en la nube
+
+La arquitectura elegida para la demostracion separa cada responsabilidad:
+
+```text
+Vercel (Next.js) ---> Render (Spring Boot) ---> Aiven (MySQL 8.4)
+```
+
+- Frontend: `https://ibatch-frontend.vercel.app`.
+- Backend: servicio Docker gratuito `ibatch-backend` en Render, definido en `render.yaml`.
+- Base de datos: MySQL gratuito `ibatch-mysql` en Aiven, con SSL obligatorio.
+- Flyway crea y versiona automaticamente el modelo relacional cuando inicia el backend.
+- Las contrasenas de MySQL y del login se ingresan en Render; nunca se guardan en Git.
+
+Render gratuito suspende el backend despues de un periodo sin solicitudes, por lo que la primera visita puede tardar mientras vuelve a iniciarse. Su disco tambien es efimero: los datos procesados quedan seguros en Aiven, pero los CSV cargados pueden desaparecer tras un reinicio. Para una demostracion del reto es aceptable; para produccion real se recomienda almacenamiento de objetos o un disco persistente.
+
+### Variables de produccion
+
+Render recibe las variables no sensibles desde `render.yaml` y solicita estas dos durante la creacion:
+
+- `DB_PASSWORD`: contrasena del usuario MySQL de Aiven.
+- `APP_AUTH_PASSWORD`: contrasena segura para entrar a iBatch.
+
+La conexion usa `defaultdb`, `sslMode=REQUIRED` y un pool pequeno, adecuado al nivel gratuito. Para permitir la sesion HTTPS entre dos dominios diferentes se configuran `SESSION_COOKIE_SECURE=true` y `SESSION_COOKIE_SAME_SITE=none`; la cookie CSRF usa los mismos atributos.
+
+Cuando Render asigne la URL del backend, configure en Vercel:
+
+```dotenv
+NEXT_PUBLIC_API_BASE_URL=https://ibatch-backend.onrender.com
+```
+
+Luego haga un redeploy del frontend porque las variables `NEXT_PUBLIC_*` se incorporan durante la compilacion.
+
 ## Despliegue completo con Docker Compose
 
 ### 1. Requisitos
@@ -60,6 +93,7 @@ Para un servidor con HTTPS use:
 PUBLIC_FRONTEND_URL=https://app.ejemplo.com
 PUBLIC_BACKEND_URL=https://api.ejemplo.com
 SESSION_COOKIE_SECURE=true
+SESSION_COOKIE_SAME_SITE=lax
 ```
 
 Ambas URLs deben pertenecer al mismo sitio registrable para que la cookie `SameSite=Lax` funcione de forma predecible, por ejemplo `app.ejemplo.com` y `api.ejemplo.com`.
@@ -71,6 +105,7 @@ El frontend puede desplegarse en Vercel y el backend en un VPS, AWS, Render, Rai
 - configure `NEXT_PUBLIC_API_BASE_URL=https://api.ejemplo.com` en Vercel;
 - configure `CORS_ALLOWED_ORIGINS=https://app.ejemplo.com` en el backend;
 - use dominios propios bajo el mismo dominio registrable, como `app.ejemplo.com` y `api.ejemplo.com`;
+- si usa dominios de proveedores distintos, configure `SESSION_COOKIE_SAME_SITE=none` junto con `SESSION_COOKIE_SECURE=true`;
 - mantenga almacenamiento persistente para los CSV y no ejecute el procesamiento batch en una funcion serverless;
 - publique siempre con HTTPS y `SESSION_COOKIE_SECURE=true`.
 
@@ -140,6 +175,7 @@ cuenta,monto,fecha
 - La clave de login se codifica con BCrypt al iniciar el backend.
 - Todos los endpoints funcionales requieren sesion; solamente `/auth/login`, `/auth/csrf` y salud son publicos.
 - La cookie es `HttpOnly` y debe marcarse `Secure` cuando se publique con HTTPS.
+- La cookie de sesion y la cookie CSRF admiten `SameSite=None` para un frontend y backend publicados en dominios distintos.
 - Las operaciones que modifican datos exigen un token CSRF enviado en `X-XSRF-TOKEN`.
 - CORS acepta solo `PUBLIC_FRONTEND_URL`.
 - El tamano maximo y numero de registros son configurables.

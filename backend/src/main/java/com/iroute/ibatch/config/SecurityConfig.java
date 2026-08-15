@@ -3,6 +3,7 @@ package com.iroute.ibatch.config;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -24,16 +25,27 @@ public class SecurityConfig {
 
     private final RateLimitFilter rateLimitFilter;
     private final AuthProperties authProperties;
+    private final boolean secureCookies;
+    private final String sameSite;
 
-    public SecurityConfig(RateLimitFilter rateLimitFilter, AuthProperties authProperties) {
+    public SecurityConfig(
+            RateLimitFilter rateLimitFilter,
+            AuthProperties authProperties,
+            @Value("${server.servlet.session.cookie.secure}") boolean secureCookies,
+            @Value("${server.servlet.session.cookie.same-site}") String sameSite) {
         this.rateLimitFilter = rateLimitFilter;
         this.authProperties = authProperties;
+        this.secureCookies = secureCookies;
+        this.sameSite = sameSite;
     }
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         var csrfTokenRepository = CookieCsrfTokenRepository.withHttpOnlyFalse();
         csrfTokenRepository.setCookiePath("/");
+        csrfTokenRepository.setCookieCustomizer(cookie -> cookie
+                .secure(secureCookies)
+                .sameSite(sameSite));
 
         var csrfRequestHandler = new CsrfTokenRequestAttributeHandler();
         csrfRequestHandler.setCsrfRequestAttributeName(null);

@@ -1,12 +1,12 @@
 server:
-  port: ${SERVER_PORT:8080}
+  port: ${PORT:${SERVER_PORT:8080}}
   servlet:
     session:
       timeout: ${SESSION_TIMEOUT:30m}
       cookie:
         http-only: true
         secure: ${SESSION_COOKIE_SECURE:false}
-        same-site: lax
+        same-site: ${SESSION_COOKIE_SAME_SITE:lax}
   compression:
     enabled: true
     mime-types: application/json,text/plain
@@ -27,6 +27,9 @@ spring:
       minimum-idle: ${DB_POOL_MIN_IDLE:2}
       connection-timeout: ${DB_CONNECTION_TIMEOUT_MS:10000}
       validation-timeout: 5000
+  flyway:
+    enabled: ${FLYWAY_ENABLED:true}
+    baseline-on-migrate: true
   servlet:
     multipart:
       max-file-size: ${MAX_FILE_SIZE:50MB}

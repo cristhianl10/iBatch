@@ -16,7 +16,8 @@ import org.springframework.test.web.servlet.MockMvc;
 
 @SpringBootTest(properties = {
         "app.auth.username=auditor",
-        "app.auth.password=prueba-segura-2026"
+        "app.auth.password=prueba-segura-2026",
+        "spring.flyway.enabled=false"
 })
 @AutoConfigureMockMvc
 class AuthSecurityIntegrationTest {
