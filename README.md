@@ -4,7 +4,7 @@ Aplicacion full stack para cargar, detectar, procesar y auditar archivos CSV de 
 
 ## Funcionalidades
 
-- Inicio de sesion real mediante Spring Security y cookie de sesion `HttpOnly`.
+- Inicio de sesion real mediante Spring Security, cookie de sesion `HttpOnly` y proteccion CSRF.
 - Carga CSV por arrastrar y soltar o selector de archivos.
 - Lectura de archivos ya depositados en el directorio `/input`.
 - Validacion del nombre `transactions_DDMMYYYY.csv` y de la fecha contenida en el nombre.
@@ -37,6 +37,8 @@ La carga web no omite el flujo batch: guarda el archivo de manera temporal y ato
 - Puertos 3000 y 8080 disponibles, o cambiarlos en `.env`.
 - Una maquina con almacenamiento persistente. No se recomienda alojar el backend en una funcion serverless porque los CSV requieren disco persistente y el procesamiento ocurre en segundo plano.
 
+En Windows, Docker Desktop necesita WSL 2 habilitado para ejecutar estos contenedores Linux. Verifique primero `wsl --status` y `docker info`.
+
 ### 2. Crear la configuracion
 
 ```powershell
@@ -61,6 +63,18 @@ SESSION_COOKIE_SECURE=true
 ```
 
 Ambas URLs deben pertenecer al mismo sitio registrable para que la cookie `SameSite=Lax` funcione de forma predecible, por ejemplo `app.ejemplo.com` y `api.ejemplo.com`.
+
+### Alternativa: frontend en Vercel y servicios separados
+
+El frontend puede desplegarse en Vercel y el backend en un VPS, AWS, Render, Railway u otro servicio que ejecute Java de forma continua. MySQL puede ser administrado por el mismo proveedor o por un servicio especializado. En esa arquitectura:
+
+- configure `NEXT_PUBLIC_API_BASE_URL=https://api.ejemplo.com` en Vercel;
+- configure `CORS_ALLOWED_ORIGINS=https://app.ejemplo.com` en el backend;
+- use dominios propios bajo el mismo dominio registrable, como `app.ejemplo.com` y `api.ejemplo.com`;
+- mantenga almacenamiento persistente para los CSV y no ejecute el procesamiento batch en una funcion serverless;
+- publique siempre con HTTPS y `SESSION_COOKIE_SECURE=true`.
+
+Docker Compose en un VPS sigue siendo la opcion mas sencilla para este reto porque despliega frontend, backend y MySQL como servicios separados pero coordinados, con versiones reproducibles y volumenes persistentes. No los convierte en un unico proceso: cada contenedor conserva su responsabilidad y su red interna.
 
 ### 3. Construir e iniciar
 
@@ -124,8 +138,9 @@ cuenta,monto,fecha
 
 - Ninguna credencial real debe incluirse en Git.
 - La clave de login se codifica con BCrypt al iniciar el backend.
-- Todos los endpoints funcionales requieren sesion; solamente `/auth/login` y salud son publicos.
+- Todos los endpoints funcionales requieren sesion; solamente `/auth/login`, `/auth/csrf` y salud son publicos.
 - La cookie es `HttpOnly` y debe marcarse `Secure` cuando se publique con HTTPS.
+- Las operaciones que modifican datos exigen un token CSRF enviado en `X-XSRF-TOKEN`.
 - CORS acepta solo `PUBLIC_FRONTEND_URL`.
 - El tamano maximo y numero de registros son configurables.
 - Para produccion, coloque un proxy HTTPS (Caddy, Nginx o el proxy del proveedor) delante de ambos servicios.
@@ -162,6 +177,7 @@ npm run dev
 
 Publicos:
 
+- `GET /auth/csrf`
 - `POST /auth/login`
 - `GET /api/health`
 - `GET /api/health/database`
@@ -195,4 +211,13 @@ docker compose config
 docker compose build
 ```
 
-Pruebe manualmente: login incorrecto, expiracion de sesion, carga valida, nombre invalido, CSV vacio, encabezados invalidos, archivo repetido, procesamiento, rechazo, reproceso y auditoria.
+Antes de autorizar produccion confirme ademas:
+
+- `GET /api/health` y `GET /api/health/database` responden correctamente;
+- una ruta funcional sin sesion responde `401` y un `POST` sin token CSRF responde `403`;
+- login incorrecto, login correcto, logout y expiracion de sesion funcionan;
+- carga valida, nombre invalido, CSV vacio, encabezados invalidos y archivo repetido se comportan como se espera;
+- procesamiento, progreso, rechazo, filtros, reproceso elegible, dashboard y auditoria conservan los conteos;
+- los datos sobreviven al reinicio del backend y de MySQL;
+- el respaldo de MySQL fue probado y los secretos de `.env` no estan versionados;
+- el dominio, HTTPS, CORS y la cookie segura usan las URLs definitivas.

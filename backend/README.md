@@ -17,6 +17,8 @@ $env:DB_URL="jdbc:mysql://localhost:3306/ibatch?createDatabaseIfNotExist=true&us
 $env:DB_USERNAME="root"
 $env:DB_PASSWORD=""
 $env:CORS_ALLOWED_ORIGINS="http://localhost:3000"
+$env:APP_AUTH_USERNAME="operator"
+$env:APP_AUTH_PASSWORD="change-me-local"
 $env:APP_FILES_INPUT_DIR="C:\iroute\input"
 $env:PROCESSING_BATCH_SIZE="500"
 $env:MAX_FILE_SIZE_BYTES="52428800"
@@ -54,13 +56,19 @@ mvn spring-boot:run
 
 ## Endpoints iniciales
 
+- `GET /auth/csrf`: entrega el token requerido por las operaciones `POST`, `PUT`, `PATCH` y `DELETE`.
+- `POST /auth/login`: crea la sesion operativa.
+- `GET /auth/me` y `POST /auth/logout`: consulta y cierra la sesion.
 - `GET /api/health`: valida que el backend esta levantado.
 - `GET /api/health/database`: valida la conexion con MySQL.
 - `GET /files/available`: lista los CSV disponibles en el directorio configurado.
+- `POST /files/upload`: valida y deposita un CSV multipart en el directorio configurado.
 - `GET /files`: lista los archivos procesados registrados en MySQL.
 - `GET /files/{id}`: devuelve el detalle del archivo y sus transacciones.
 - `POST /files/process`: responde `202 Accepted` y procesa el archivo en segundo plano.
 - `POST /transactions/{id}`: edita el monto y reprocesa una transaccion rechazada.
+
+Excepto salud, login y obtencion del token CSRF, los endpoints requieren una sesion autenticada. Las operaciones que modifican estado deben enviar el token en la cabecera `X-XSRF-TOKEN`.
 
 Ejemplo para validar un archivo:
 
