@@ -24,6 +24,8 @@ backend/input/
 .DS_Store
 Thumbs.db
 .codex-review/
+.preprod/
+.m2/
 frontend/.next/
 frontend/node_modules/
 backend/target/

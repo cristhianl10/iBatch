@@ -99,6 +99,12 @@ type ProcessFileResponse = {
   rejectedCount: number;
 };
 
+type CsrfTokenResponse = {
+  token: string;
+};
+
+let csrfToken: string | null = null;
+
 export interface PageResponse<T> {
   content: T[];
   page: number;
@@ -107,13 +113,32 @@ export interface PageResponse<T> {
   totalPages: number;
 }
 
+async function getCsrfToken() {
+  const response = await fetch(`${API_BASE_URL}/auth/csrf`, {
+    credentials: "include",
+    headers: { Accept: "application/json" },
+  });
+
+  if (!response.ok) {
+    throw new Error("No se pudo iniciar la proteccion de la sesion");
+  }
+
+  const data = (await response.json()) as CsrfTokenResponse;
+  csrfToken = data.token;
+  return data.token;
+}
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   const isFormData = init?.body instanceof FormData;
+  const method = (init?.method ?? "GET").toUpperCase();
+  const requiresCsrf = !["GET", "HEAD", "OPTIONS"].includes(method);
+  const requestCsrfToken = requiresCsrf ? csrfToken ?? (await getCsrfToken()) : null;
   const response = await fetch(`${API_BASE_URL}${path}`, {
     ...init,
     credentials: "include",
     headers: {
       ...(isFormData ? {} : { "Content-Type": "application/json" }),
+      ...(requestCsrfToken ? { "X-XSRF-TOKEN": requestCsrfToken } : {}),
       ...init?.headers,
     },
   });
@@ -146,7 +171,9 @@ export function getCurrentUser() {
 }
 
 export function logout() {
-  return request<void>("/auth/logout", { method: "POST" });
+  return request<void>("/auth/logout", { method: "POST" }).finally(() => {
+    csrfToken = null;
+  });
 }
 
 export function uploadFile(file: File) {

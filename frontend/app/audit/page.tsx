@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import AppHeader from "../components/AppHeader";
 import { getProcessingLogs, type ProcessingLogResponse } from "../../lib/api";
 
@@ -42,7 +42,7 @@ export default function AuditPage() {
   const [totalPages, setTotalPages] = useState(1);
   const [totalElements, setTotalElements] = useState(0);
 
-  const loadLogs = async (showNotice = false, currentPage = page, currentSize = pageSize) => {
+  const loadLogs = useCallback(async (showNotice = false, currentPage = page, currentSize = pageSize) => {
     try {
       const data = await getProcessingLogs(currentPage, currentSize);
       setEvents(data.content);
@@ -52,7 +52,7 @@ export default function AuditPage() {
     } catch (error) {
       setNotice(error instanceof Error ? error.message : "No se pudo cargar la auditoría.");
     }
-  };
+  }, [page, pageSize]);
 
   useEffect(() => {
     void Promise.resolve().then(() => loadLogs(false, page, pageSize));
@@ -67,7 +67,7 @@ export default function AuditPage() {
     }, 3000);
 
     return () => clearInterval(interval);
-  }, [page, pageSize]);
+  }, [page, pageSize, loadLogs]);
 
   const visibleEvents = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();

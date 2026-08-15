@@ -18,6 +18,7 @@ type RejectedTransaction = {
   date: string;
   amount: number;
   reason: string;
+  rejectionCodes: string[];
 };
 
 type FileTransaction = {
@@ -27,6 +28,7 @@ type FileTransaction = {
   amount: number;
   status: "PROCESADO" | "RECHAZADA";
   rejectionReason?: string;
+  rejectionCodes: string[];
 };
 
 type ProcessedFile = {
@@ -87,7 +89,10 @@ function mapFileDetail(detail: FileDetailResponse): ProcessedFile {
     date: transaction.transactionDate ?? transaction.rawDate ?? "No disponible",
     amount: transaction.amount ?? 0,
     status: transaction.status,
-    rejectionReason: transaction.rejections[0]?.reasonName ?? transaction.rejections[0]?.reasonCode,
+    rejectionReason: transaction.rejections
+      .map((rejection) => rejection.reasonName || rejection.reasonCode)
+      .join(", ") || undefined,
+    rejectionCodes: transaction.rejections.map((rejection) => rejection.reasonCode),
   }));
 
   return {
@@ -103,6 +108,7 @@ function mapFileDetail(detail: FileDetailResponse): ProcessedFile {
         date: transaction.date,
         amount: transaction.amount,
         reason: transaction.rejectionReason ?? "Rechazada",
+        rejectionCodes: transaction.rejectionCodes,
       })),
   };
 }
@@ -116,8 +122,9 @@ function statusLabel(status: HistoryStatus) {
   return "Procesado";
 }
 
-function canReprocess(reason: string) {
-  return Boolean(reason);
+function canReprocess(rejectionCodes: string[]) {
+  const editableByAmount = new Set(["MONTO_INVALIDO", "DUPLICADO"]);
+  return rejectionCodes.length > 0 && rejectionCodes.every((code) => editableByAmount.has(code));
 }
 
 export default function ProcessedFilesPage() {
@@ -284,7 +291,7 @@ export default function ProcessedFilesPage() {
 
   const openReprocessModal = () => {
     const eligibleRejected = selectedFile?.rejectedTransactions.filter(
-      (transaction) => canReprocess(transaction.reason),
+      (transaction) => canReprocess(transaction.rejectionCodes),
     ) ?? [];
     if (!eligibleRejected.length) return;
     const firstRejected = eligibleRejected[0];
@@ -530,7 +537,7 @@ export default function ProcessedFilesPage() {
                     rechazadas
                   </span>
                 </div>
-                {selectedFile.rejectedTransactions.some((transaction) => canReprocess(transaction.reason)) ? (
+                {selectedFile.rejectedTransactions.some((transaction) => canReprocess(transaction.rejectionCodes)) ? (
                   <button
                     type="button"
                     className="secondary-button history-reprocess-button"
@@ -731,9 +738,7 @@ export default function ProcessedFilesPage() {
                     <tbody>
                       {detailTransactions.map((transaction) => {
                         const isRejected = transaction.status === "RECHAZADA";
-                        const isReprocessable = Boolean(
-                          transaction.rejectionReason && canReprocess(transaction.rejectionReason),
-                        );
+                        const isReprocessable = canReprocess(transaction.rejectionCodes);
                         return (
                           <tr key={transaction.id}>
                             <td>
@@ -823,7 +828,7 @@ export default function ProcessedFilesPage() {
 
               <div className="rejected-transaction-list" aria-label="Transacciones rechazadas">
                 {selectedFile.rejectedTransactions
-                  .filter((transaction) => canReprocess(transaction.reason))
+                  .filter((transaction) => canReprocess(transaction.rejectionCodes))
                   .map((transaction) => (
                   <button
                     type="button"
