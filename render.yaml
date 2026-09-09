@@ -24,7 +24,7 @@ services:
       - key: SESSION_COOKIE_SAME_SITE
         value: none
       - key: APP_FILES_INPUT_DIR
-        value: /tmp/ibatch-input
+        value: /data/input
       - key: DB_POOL_MAX_SIZE
         value: "5"
       - key: DB_POOL_MIN_IDLE
