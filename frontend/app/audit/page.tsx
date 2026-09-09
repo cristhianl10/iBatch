@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import AppHeader from "../components/AppHeader";
+import RequireAuth from "../components/RequireAuth";
 import { getProcessingLogs, type ProcessingLogResponse } from "../../lib/api";
 
 type AuditSeverity = "INFO" | "WARNING" | "ERROR" | "SUCCESS";
@@ -92,6 +93,7 @@ export default function AuditPage() {
   const countByLevel = (level: AuditSeverity) => visibleEvents.filter((event) => event.level === level).length;
 
   return (
+    <RequireAuth>
     <div className="application-shell">
       <AppHeader active="audit" />
       <main>
@@ -167,5 +169,6 @@ export default function AuditPage() {
         </section>
       </main>
     </div>
+    </RequireAuth>
   );
 }

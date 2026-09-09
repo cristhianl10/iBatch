@@ -3,7 +3,8 @@ import type { NextConfig } from "next";
 const apiBaseUrl = process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:8080";
 
 const nextConfig: NextConfig = {
-  output: "standalone",
+  // standalone solo para Docker; en Vercel el builder nativo de Next.js lo maneja
+  ...(process.env.VERCEL ? {} : { output: "standalone" as const }),
   async headers() {
     return [
       {

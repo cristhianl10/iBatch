@@ -30,3 +30,5 @@ frontend/.next/
 frontend/node_modules/
 backend/target/
 backend/.m2/
+.vercel
+.env*

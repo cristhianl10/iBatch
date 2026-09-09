@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import RequireAuth from "../../components/RequireAuth";
 import { getAvailableFiles, processFile, getFileProgress, uploadFile, logout, type FileProgressResponse } from "../../../lib/api";
 
 type AvailableFile = {
@@ -138,6 +139,7 @@ export default function AvailableFilesPage() {
   };
 
   return (
+    <RequireAuth>
     <div className="application-shell">
       <header className="topbar">
         <a className="brand" href="/files/available" aria-label="iBatch, inicio">
@@ -512,5 +514,6 @@ export default function AvailableFilesPage() {
         </div>
       ) : null}
     </div>
+    </RequireAuth>
   );
 }

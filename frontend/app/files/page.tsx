@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import AppHeader from "../components/AppHeader";
+import RequireAuth from "../components/RequireAuth";
 import {
   getFileDetail,
   getProcessedFiles,
@@ -337,6 +338,7 @@ export default function ProcessedFilesPage() {
   };
 
   return (
+    <RequireAuth>
     <div className="application-shell">
       <AppHeader active="history" />
 
@@ -889,5 +891,6 @@ export default function ProcessedFilesPage() {
         </footer>
       </main>
     </div>
+    </RequireAuth>
   );
 }

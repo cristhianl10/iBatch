@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import AppHeader from "../components/AppHeader";
+import RequireAuth from "../components/RequireAuth";
 import { getDashboardSummary, type DashboardSummaryResponse } from "../../lib/api";
 
 const numberFormat = new Intl.NumberFormat("es-EC");
@@ -58,6 +59,7 @@ export default function DashboardPage() {
   );
 
   return (
+    <RequireAuth>
     <div className="application-shell">
       <AppHeader active="dashboard" />
       <main>
@@ -132,5 +134,6 @@ export default function DashboardPage() {
         </section>
       </main>
     </div>
+    </RequireAuth>
   );
 }

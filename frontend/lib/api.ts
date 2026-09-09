@@ -143,7 +143,12 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
     },
   });
 
-  if (response.status === 401 && typeof window !== "undefined" && !path.startsWith("/auth/")) {
+  const shouldRedirectToLogin =
+    response.status === 401 &&
+    typeof window !== "undefined" &&
+    !path.startsWith("/auth/");
+
+  if (shouldRedirectToLogin) {
     window.location.assign("/login");
     throw new Error("La sesion ha expirado");
   }
