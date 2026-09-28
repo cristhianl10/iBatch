@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
-import { getCurrentUser, login } from "../../lib/api";
+import { getCurrentUser, login, register } from "../../lib/api";
 
 function UserIcon() {
   return (
@@ -83,6 +83,7 @@ function ShieldIcon() {
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
+  const [registering, setRegistering] = useState(false);
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
@@ -104,8 +105,15 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
     try {
-      await login(username.trim(), password);
-      window.location.assign("/files/available");
+      if (registering) {
+        await register(username.trim(), password);
+        setRegistering(false);
+        setPassword("");
+        setError("Cuenta creada. Ya puedes iniciar sesión.");
+      } else {
+        await login(username.trim(), password);
+        window.location.assign("/files/available");
+      }
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : "No fue posible iniciar sesion");
     } finally {
@@ -170,9 +178,9 @@ export default function LoginPage() {
       <section className="auth-form-panel">
         <div className="auth-card">
           <p className="auth-card__kicker">Acceso operativo</p>
-          <h2 className="auth-card__title">Iniciar sesión</h2>
+          <h2 className="auth-card__title">{registering ? "Crear cuenta" : "Iniciar sesión"}</h2>
           <p className="auth-card__subtitle">
-            Ingrese sus credenciales para continuar a la consola de operaciones.
+            {registering ? "Crea tus credenciales para acceder a la consola de operaciones." : "Ingrese sus credenciales para continuar a la consola de operaciones."}
           </p>
 
           {error ? (
@@ -240,10 +248,14 @@ export default function LoginPage() {
                   Verificando credenciales...
                 </>
               ) : (
-                "Ingresar a la consola"
+                registering ? "Crear cuenta" : "Ingresar a la consola"
               )}
             </button>
           </form>
+
+          <button className="auth-mode-toggle" type="button" onClick={() => { setRegistering((value) => !value); setError(null); setPassword(""); }}>
+            {registering ? "¿Ya tienes cuenta? Inicia sesión" : "¿Primera vez? Crear una cuenta"}
+          </button>
 
           <p className="auth-security-note">
             <span aria-hidden="true">
