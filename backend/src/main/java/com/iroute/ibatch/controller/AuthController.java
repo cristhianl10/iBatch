@@ -10,6 +10,9 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.security.core.userdetails.User;
+import org.springframework.security.crypto.password.PasswordEncoder;
+import org.springframework.security.provisioning.JdbcUserDetailsManager;
 import org.springframework.security.web.context.HttpSessionSecurityContextRepository;
 import org.springframework.security.web.csrf.CsrfToken;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,6 +22,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.iroute.ibatch.dto.request.LoginRequest;
+import com.iroute.ibatch.dto.request.RegisterRequest;
 import com.iroute.ibatch.dto.response.AuthUserResponse;
 import com.iroute.ibatch.dto.response.CsrfTokenResponse;
 
@@ -27,9 +31,14 @@ import com.iroute.ibatch.dto.response.CsrfTokenResponse;
 public class AuthController {
 
     private final AuthenticationManager authenticationManager;
+    private final JdbcUserDetailsManager userDetailsManager;
+    private final PasswordEncoder passwordEncoder;
 
-    public AuthController(AuthenticationManager authenticationManager) {
+    public AuthController(AuthenticationManager authenticationManager, JdbcUserDetailsManager userDetailsManager,
+            PasswordEncoder passwordEncoder) {
         this.authenticationManager = authenticationManager;
+        this.userDetailsManager = userDetailsManager;
+        this.passwordEncoder = passwordEncoder;
     }
 
     @GetMapping("/csrf")
@@ -38,9 +47,7 @@ public class AuthController {
     }
 
     @PostMapping("/login")
-    public AuthUserResponse login(
-            @Valid @RequestBody LoginRequest request,
-            HttpServletRequest servletRequest) {
+    public AuthUserResponse login(@Valid @RequestBody LoginRequest request, HttpServletRequest servletRequest) {
         var authentication = authenticationManager.authenticate(
                 UsernamePasswordAuthenticationToken.unauthenticated(request.username(), request.password()));
         var context = SecurityContextHolder.createEmptyContext();
@@ -51,6 +58,17 @@ public class AuthController {
         return toResponse(authentication);
     }
 
+    @PostMapping("/register")
+    public ResponseEntity<AuthUserResponse> register(@Valid @RequestBody RegisterRequest request) {
+        var username = request.username().trim();
+        if (userDetailsManager.userExists(username)) return ResponseEntity.status(HttpStatus.CONFLICT).build();
+        userDetailsManager.createUser(User.withUsername(username)
+                .password(passwordEncoder.encode(request.password()))
+                .roles("OPERADOR")
+                .build());
+        return ResponseEntity.status(HttpStatus.CREATED).body(new AuthUserResponse(username, "OPERADOR"));
+    }
+
     @GetMapping("/me")
     public AuthUserResponse me(Authentication authentication) {
         return toResponse(authentication);
@@ -59,9 +77,7 @@ public class AuthController {
     @PostMapping("/logout")
     public ResponseEntity<Void> logout(HttpServletRequest request, HttpServletResponse response) {
         var session = request.getSession(false);
-        if (session != null) {
-            session.invalidate();
-        }
+        if (session != null) session.invalidate();
         SecurityContextHolder.clearContext();
         return ResponseEntity.noContent().build();
     }
