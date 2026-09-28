@@ -1,17 +1,19 @@
 package com.iroute.ibatch.config;
 
+import javax.sql.DataSource;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.boot.web.servlet.FilterRegistrationBean;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.security.config.annotation.web.builders.HttpSecurity;
-import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.config.annotation.authentication.configuration.AuthenticationConfiguration;
+import org.springframework.security.config.annotation.web.builders.HttpSecurity;
+import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
-import org.springframework.security.provisioning.InMemoryUserDetailsManager;
+import org.springframework.security.provisioning.JdbcUserDetailsManager;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import org.springframework.security.web.csrf.CookieCsrfTokenRepository;
@@ -42,21 +44,17 @@ public class SecurityConfig {
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
         var csrfTokenRepository = CookieCsrfTokenRepository.withHttpOnlyFalse();
         csrfTokenRepository.setCookiePath("/");
-        csrfTokenRepository.setCookieCustomizer(cookie -> cookie
-                .secure(secureCookies)
-                .sameSite(sameSite));
+        csrfTokenRepository.setCookieCustomizer(cookie -> cookie.secure(secureCookies).sameSite(sameSite));
 
         var csrfRequestHandler = new CsrfTokenRequestAttributeHandler();
         csrfRequestHandler.setCsrfRequestAttributeName(null);
 
         return http
-                .csrf(csrf -> csrf
-                        .csrfTokenRepository(csrfTokenRepository)
-                        .csrfTokenRequestHandler(csrfRequestHandler))
+                .csrf(csrf -> csrf.csrfTokenRepository(csrfTokenRepository).csrfTokenRequestHandler(csrfRequestHandler))
                 .cors(cors -> { })
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED))
                 .authorizeHttpRequests(authorize -> authorize
-                        .requestMatchers("/auth/login", "/auth/csrf", "/api/health", "/api/health/**", "/error").permitAll()
+                        .requestMatchers("/auth/login", "/auth/register", "/auth/csrf", "/api/health", "/api/health/**", "/error").permitAll()
                         .anyRequest().authenticated())
                 .exceptionHandling(errors -> errors.authenticationEntryPoint((request, response, exception) ->
                         response.sendError(401, "Autenticacion requerida")))
@@ -66,9 +64,7 @@ public class SecurityConfig {
                         .contentSecurityPolicy(policy -> policy.policyDirectives("default-src 'none'; frame-ancestors 'none'"))
                         .frameOptions(frame -> frame.deny())
                         .referrerPolicy(referrer -> referrer.policy(ReferrerPolicy.NO_REFERRER))
-                        .addHeaderWriter(new StaticHeadersWriter(
-                                "Permissions-Policy",
-                                "camera=(), microphone=(), geolocation=()")))
+                        .addHeaderWriter(new StaticHeadersWriter("Permissions-Policy", "camera=(), microphone=(), geolocation=()")))
                 .addFilterBefore(rateLimitFilter, UsernamePasswordAuthenticationFilter.class)
                 .build();
     }
@@ -79,12 +75,15 @@ public class SecurityConfig {
     }
 
     @Bean
-    public UserDetailsService userDetailsService(PasswordEncoder encoder) {
-        var user = User.withUsername(authProperties.username())
-                .password(encoder.encode(authProperties.password()))
-                .roles("OPERADOR")
-                .build();
-        return new InMemoryUserDetailsManager(user);
+    public JdbcUserDetailsManager userDetailsService(DataSource dataSource, PasswordEncoder encoder) {
+        var manager = new JdbcUserDetailsManager(dataSource);
+        if (!manager.userExists(authProperties.username())) {
+            manager.createUser(User.withUsername(authProperties.username())
+                    .password(encoder.encode(authProperties.password()))
+                    .roles("OPERADOR")
+                    .build());
+        }
+        return manager;
     }
 
     @Bean
