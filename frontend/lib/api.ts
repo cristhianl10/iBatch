@@ -164,6 +164,13 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
 export type AuthUser = { username: string; role: "OPERADOR" };
 
+export function register(username: string, password: string) {
+  return request<AuthUser>("/auth/register", {
+    method: "POST",
+    body: JSON.stringify({ username, password }),
+  });
+}
+
 export function login(username: string, password: string) {
   return request<AuthUser>("/auth/login", {
     method: "POST",
