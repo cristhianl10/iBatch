@@ -155,6 +155,8 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 
   if (!response.ok) {
     const error = (await response.json().catch(() => ({}))) as ErrorResponse;
+    if (response.status === 409) throw new Error("Ese usuario ya existe. Inicia sesión con sus credenciales.");
+    if (response.status === 401) throw new Error("El usuario o la contraseña no son correctos.");
     throw new Error(error.message ?? "No se pudo completar la operación");
   }
 
