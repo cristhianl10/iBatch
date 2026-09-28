@@ -2,6 +2,8 @@ package com.iroute.ibatch.config;
 
 import javax.sql.DataSource;
 
+import org.springframework.jdbc.core.JdbcTemplate;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
@@ -28,16 +30,19 @@ public class SecurityConfig {
     private final AuthProperties authProperties;
     private final boolean secureCookies;
     private final String sameSite;
+    private final boolean migrationRepair;
 
     public SecurityConfig(
             RateLimitFilter rateLimitFilter,
             AuthProperties authProperties,
             @Value("${server.servlet.session.cookie.secure}") boolean secureCookies,
-            @Value("${server.servlet.session.cookie.same-site}") String sameSite) {
+            @Value("${server.servlet.session.cookie.same-site}") String sameSite,
+            @Value("${app.auth.migration-repair:false}") boolean migrationRepair) {
         this.rateLimitFilter = rateLimitFilter;
         this.authProperties = authProperties;
         this.secureCookies = secureCookies;
         this.sameSite = sameSite;
+        this.migrationRepair = migrationRepair;
     }
 
     @Bean
@@ -76,6 +81,12 @@ public class SecurityConfig {
 
     @Bean
     public JdbcUserDetailsManager userDetailsService(DataSource dataSource, PasswordEncoder encoder) {
+        if (migrationRepair) {
+            var jdbc = new JdbcTemplate(dataSource);
+            jdbc.execute("DELETE FROM flyway_schema_history WHERE version = '2' AND success = 0");
+            jdbc.execute("CREATE TABLE IF NOT EXISTS users (username VARCHAR(100) NOT NULL PRIMARY KEY, password VARCHAR(100) NOT NULL, enabled BOOLEAN NOT NULL DEFAULT TRUE)");
+            jdbc.execute("CREATE TABLE IF NOT EXISTS authorities (username VARCHAR(100) NOT NULL, authority VARCHAR(50) NOT NULL, CONSTRAINT fk_authorities_users FOREIGN KEY (username) REFERENCES users(username) ON DELETE CASCADE, CONSTRAINT uk_authorities UNIQUE (username, authority))");
+        }
         var manager = new JdbcUserDetailsManager(dataSource);
         if (!manager.userExists(authProperties.username())) {
             manager.createUser(User.withUsername(authProperties.username())
