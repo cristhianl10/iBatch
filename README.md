@@ -37,7 +37,7 @@ La arquitectura elegida para la demostracion separa cada responsabilidad:
 Vercel (Next.js) ---> Render (Spring Boot) ---> Aiven (MySQL 8.4)
 ```
 
-- Frontend: `https://ibatch-frontend.vercel.app`.
+- Frontend: `https://i-batch.vercel.app`.
 - Backend: servicio Docker gratuito `ibatch-backend` en Render, definido en `render.yaml`.
 - Base de datos: MySQL gratuito `ibatch-mysql` en Aiven, con SSL obligatorio.
 - Flyway crea y versiona automaticamente el modelo relacional cuando inicia el backend.
@@ -257,3 +257,9 @@ Antes de autorizar produccion confirme ademas:
 - los datos sobreviven al reinicio del backend y de MySQL;
 - el respaldo de MySQL fue probado y los secretos de `.env` no estan versionados;
 - el dominio, HTTPS, CORS y la cookie segura usan las URLs definitivas.
+
+
+## Estado actual de verificación
+
+La aplicación y el código están documentados y el frontend está publicado en Vercel. El backend de Render no está saludable porque Flyway no puede conectarse al endpoint MySQL configurado en Aiven (`Communications link failure`). La base Aiven debe restaurarse o reemplazarse y luego deben actualizarse `DB_URL` y `DB_PASSWORD` en Render. El servicio `ibatch-backend-deploy` es duplicado/legado; el servicio canónico es `ibatch-backend`.
+
